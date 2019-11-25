@@ -21,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, help="num epochs", default=10)
     parser.add_argument('--embed-file', type=str, help="embedding location", default='./data/glove.6B.100D.txt')
     parser.add_argument('--embed-dim', type=int, help="size of embeddings", default=100)
+    parser.add_argument('--hidden-size', type=int, help="size of hidden dimension", default=128)
 
     args = parser.parse_args()
 
@@ -33,9 +34,14 @@ if __name__ == '__main__':
     GLOVE_COMMON_WORDS_PATH = os.path.join("data", "glove_common_words.txt")
 
     print(f"\nReading Train Instances")
-    train_instances = read_instances(args.data_file, MAX_TOKENS)
+    # train_instances = read_instances(args.data_file, MAX_TOKENS)
+    import pickle
+    # pickle.dump(train_instances, open(args.data_file + '.pkl', 'wb'))
+    train_instances = pickle.load(open(args.data_file + '.pkl', 'rb'))
     print(f"\nReading Val Instances")
-    val_instances = read_instances(args.val_file, MAX_TOKENS)
+    # val_instances = read_instances(args.val_file, MAX_TOKENS)
+    # pickle.dump(val_instances, open(args.val_file + '.pkl', 'wb'))
+    val_instances = pickle.load(open(args.val_file + '.pkl', 'rb'))
 
     with open(GLOVE_COMMON_WORDS_PATH) as file:
         glove_common_words = [line.strip() for line in file.readlines() if line.strip()]
@@ -49,7 +55,7 @@ if __name__ == '__main__':
 
     ### TODO(Students) START
     # make a config file here as expected by your MyAdvancedModel
-    config = {}
+    config = {'vocab_size': vocab_size, 'embed_dim': args.embed_dim, 'training': True, 'hidden_size': args.hidden_size}
     ### TODO(Students END
     model = MyAdvancedModel(**config)
     config['type'] = 'advanced'
