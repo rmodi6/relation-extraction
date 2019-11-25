@@ -16,12 +16,20 @@ class MyBasicAttentiveBiGRU(models.Model):
         self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)))
 
         ### TODO(Students) START
-        # ...
+
+        gru = layers.GRU(units=hidden_size, return_sequences=True)
+        self.bigru = layers.Bidirectional(gru, merge_mode='concat')
+
         ### TODO(Students) END
 
     def attn(self, rnn_outputs):
         ### TODO(Students) START
-        # ...
+
+        M = tf.tanh(rnn_outputs)
+        alpha = tf.nn.softmax(tf.matmul(M, self.omegas))
+        r = tf.matmul(rnn_outputs, alpha, transpose_a=True)
+        output = tf.tanh(r)
+
         ### TODO(Students) END
 
         return output
@@ -31,7 +39,13 @@ class MyBasicAttentiveBiGRU(models.Model):
         pos_embed = tf.nn.embedding_lookup(self.embeddings, pos_inputs)
 
         ### TODO(Students) START
-        # ...
+
+        batch_size, sequence_length, embed_size = word_embed.shape
+        input_embed = tf.concat([word_embed, pos_embed], axis=-1)
+        h = self.bigru(input_embed)
+        output = self.attn(h)
+        logits = self.decoder(tf.reshape(output, [batch_size, h.shape[-1]]))
+
         ### TODO(Students) END
 
         return {'logits': logits}
