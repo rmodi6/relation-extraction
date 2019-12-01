@@ -11,13 +11,13 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         self.num_classes = len(ID_TO_CLASS)
 
-        self.decoder = layers.Dense(units=self.num_classes, trainable=training)
-        self.omegas = tf.Variable(tf.random.normal((hidden_size*2, 1)), trainable=training)
-        self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)), trainable=training)
+        self.decoder = layers.Dense(units=self.num_classes)
+        self.omegas = tf.Variable(tf.random.normal((hidden_size*2, 1)))
+        self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)))
 
         ### TODO(Students) START
 
-        gru = layers.GRU(units=hidden_size, return_sequences=True, trainable=training)
+        gru = layers.GRU(units=hidden_size, return_sequences=True)
         self.bigru = layers.Bidirectional(gru, merge_mode='concat')
 
         ### TODO(Students) END
@@ -42,7 +42,7 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
-        h = self.bigru(input_embed)
+        h = self.bigru(input_embed, training=training)
         output = self.attn(h)
         logits = self.decoder(tf.reshape(output, [batch_size, h.shape[-1]]))
 
@@ -64,8 +64,9 @@ class MyAdvancedModel(models.Model):
         self.omegas = tf.Variable(tf.random.normal((2*hidden_size, 1)))
         self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)))
 
-        gru = layers.GRU(units=hidden_size, return_sequences=True, dropout=0.2)
-        self.bigru = layers.Bidirectional(gru, merge_mode='concat')
+        gru = layers.Conv1D(hidden_size, kernel_size=5, padding='same', activation='tanh')
+        self.bigru = gru
+        self.max_pooling = layers.MaxPooling1D(pool_size=5, padding='same')
 
         ### TODO(Students) END
 
@@ -90,8 +91,9 @@ class MyAdvancedModel(models.Model):
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
         h = self.bigru(input_embed)
-        output = self.attn(h)
-        logits = self.decoder(tf.reshape(output, [batch_size, h.shape[-1]]))
+        # h = self.max_pooling(h)
+        h = self.attn(h)
+        logits = self.decoder(tf.reshape(h, [batch_size, h.shape[-1]*h.shape[-2]]))
 
         ### TODO(Students) END
 
