@@ -42,7 +42,7 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
-        h = self.bigru(input_embed)
+        h = self.bigru(input_embed, training=training)
         output = self.attn(h)
         logits = self.decoder(tf.reshape(output, [batch_size, h.shape[-1]]))
 
