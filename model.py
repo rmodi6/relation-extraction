@@ -17,6 +17,7 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         ### TODO(Students) START
 
+        self.masking_layer = layers.Masking()
         gru = layers.GRU(units=hidden_size, return_sequences=True)
         self.bigru = layers.Bidirectional(gru, merge_mode='concat')
 
@@ -26,8 +27,8 @@ class MyBasicAttentiveBiGRU(models.Model):
         ### TODO(Students) START
 
         M = tf.tanh(rnn_outputs)
-        alpha = tf.nn.softmax(tf.matmul(M, self.omegas))
-        r = tf.matmul(rnn_outputs, alpha, transpose_a=True)
+        alpha = tf.nn.softmax(tf.tensordot(M, self.omegas, axes=[-1, 0]))
+        r = tf.reduce_sum(tf.multiply(rnn_outputs, alpha), axis=1)
         output = tf.tanh(r)
 
         ### TODO(Students) END
@@ -42,9 +43,10 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
-        h = self.bigru(input_embed, training=training)
+        masked_input = self.masking_layer(input_embed)
+        h = self.bigru(masked_input, training=training)
         output = self.attn(h)
-        logits = self.decoder(tf.reshape(output, [batch_size, h.shape[-1]]))
+        logits = self.decoder(output)
 
         ### TODO(Students) END
 
@@ -60,27 +62,17 @@ class MyAdvancedModel(models.Model):
         self.num_classes = len(ID_TO_CLASS)
 
         self.decoder = layers.Dense(units=self.num_classes)
-        # self.decoder = layers.Dropout(0.2)(self.decoder)
-        self.omegas = tf.Variable(tf.random.normal((2*hidden_size, 1)))
         self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)))
 
-        gru = layers.Conv1D(hidden_size, kernel_size=5, padding='same', activation='tanh')
-        self.bigru = gru
-        self.max_pooling = layers.MaxPooling1D(pool_size=5, padding='same')
+        self.cnn_layers = []
+        for kernel_size in [2, 3, 4]:
+            cnn = layers.Convolution1D(hidden_size, input_shape=(None, 2 * embed_dim), kernel_size=kernel_size,
+                                     activation='tanh')
+            self.cnn_layers.append(cnn)
+        self.max_pooling = layers.GlobalMaxPooling1D()
+        self.dropout_layer = layers.Dropout(rate=0.5)
 
         ### TODO(Students) END
-
-    def attn(self, rnn_outputs):
-        ### TODO(Students) START
-
-        M = tf.tanh(rnn_outputs)
-        alpha = tf.nn.softmax(tf.matmul(M, self.omegas))
-        r = tf.matmul(rnn_outputs, alpha, transpose_a=True)
-        output = tf.tanh(r)
-
-        ### TODO(Students) END
-
-        return output
 
     def call(self, inputs, pos_inputs, training):
         word_embed = tf.nn.embedding_lookup(self.embeddings, inputs)
@@ -90,10 +82,17 @@ class MyAdvancedModel(models.Model):
 
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
-        h = self.bigru(input_embed)
-        # h = self.max_pooling(h)
-        h = self.attn(h)
-        logits = self.decoder(tf.reshape(h, [batch_size, h.shape[-1]*h.shape[-2]]))
+
+        hidden_outputs = []
+        for cnn_layer in self.cnn_layers:
+            hidden_output = cnn_layer(input_embed)
+            hidden_output = self.max_pooling(hidden_output)
+            hidden_outputs.append(hidden_output)
+
+        h = tf.concat(hidden_outputs, axis=-1)
+        if training:
+            h = self.dropout_layer(h)
+        logits = self.decoder(h)
 
         ### TODO(Students) END
 
