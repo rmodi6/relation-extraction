@@ -17,19 +17,21 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         ### TODO(Students) START
 
-        self.masking_layer = layers.Masking()
-        gru = layers.GRU(units=hidden_size, return_sequences=True)
-        self.bigru = layers.Bidirectional(gru, merge_mode='concat')
+        gru = layers.GRU(units=hidden_size, return_sequences=True)  # GRU layer
+        self.bigru = layers.Bidirectional(gru, merge_mode='concat')  # Bidirectional layer to make the GRU bidirectional
 
         ### TODO(Students) END
 
     def attn(self, rnn_outputs):
         ### TODO(Students) START
 
-        M = tf.tanh(rnn_outputs)
-        alpha = tf.nn.softmax(tf.tensordot(M, self.omegas, axes=[-1, 0]))
+        M = tf.tanh(rnn_outputs)  # Apply tanh non-linearity on rnn_outputs
+        # Element-wise multiplication of last dimension of M with first dimension of omegas and
+        # apply softmax over the product on the second dimension
+        alpha = tf.nn.softmax(tf.tensordot(M, self.omegas, axes=[-1, 0]), axis=1)
+        # Element-wise multiplication of rnn outputs with alpha and reduce sum on the second dimension
         r = tf.reduce_sum(tf.multiply(rnn_outputs, alpha), axis=1)
-        output = tf.tanh(r)
+        output = tf.tanh(r)  # Apply tanh non-linearity on the resultant r
 
         ### TODO(Students) END
 
@@ -41,11 +43,18 @@ class MyBasicAttentiveBiGRU(models.Model):
 
         ### TODO(Students) START
 
+        # Get the different dimensions of the inputs
         batch_size, sequence_length, embed_size = word_embed.shape
+        # Concatenate the word embeddings and pos embeddings
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
-        masked_input = self.masking_layer(input_embed)
-        h = self.bigru(masked_input, training=training)
+        # input_embed = word_embed  # Word only experiment
+        # Create sequence mask for padded values in the input
+        mask = tf.cast(inputs != 0, tf.float32)
+        # Feed the input embeddings to the bidirectional gru layer with sequence mask
+        h = self.bigru(input_embed, training=training, mask=mask)
+        # Apply attention on the hidden outputs of bigru
         output = self.attn(h)
+        # Feed the attended hidden outputs to the final output layer [dense layer]
         logits = self.decoder(output)
 
         ### TODO(Students) END
@@ -64,9 +73,10 @@ class MyAdvancedModel(models.Model):
         self.decoder = layers.Dense(units=self.num_classes)
         self.embeddings = tf.Variable(tf.random.normal((vocab_size, embed_dim)))
 
+        self.bilstm = layers.Bidirectional(layers.LSTM(units=hidden_size, return_sequences=True), merge_mode='concat')
         self.cnn_layers = []
         for kernel_size in [2, 3, 4]:
-            cnn = layers.Convolution1D(hidden_size, input_shape=(None, 2 * embed_dim), kernel_size=kernel_size,
+            cnn = layers.Convolution1D(hidden_size, input_shape=(None, 2 * hidden_size), kernel_size=kernel_size,
                                      activation='tanh')
             self.cnn_layers.append(cnn)
         self.max_pooling = layers.GlobalMaxPooling1D()
@@ -82,6 +92,9 @@ class MyAdvancedModel(models.Model):
 
         batch_size, sequence_length, embed_size = word_embed.shape
         input_embed = tf.concat([word_embed, pos_embed], axis=-1)
+        mask = tf.cast(inputs != 0, tf.float32)
+
+        input_embed = self.bilstm(input_embed, mask=mask)
 
         hidden_outputs = []
         for cnn_layer in self.cnn_layers:
