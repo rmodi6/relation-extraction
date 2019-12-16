@@ -34,14 +34,9 @@ if __name__ == '__main__':
     GLOVE_COMMON_WORDS_PATH = os.path.join("data", "glove_common_words.txt")
 
     print(f"\nReading Train Instances")
-    # train_instances = read_instances(args.data_file, MAX_TOKENS)
-    import pickle
-    # pickle.dump(train_instances, open(args.data_file + '.pkl', 'wb'))
-    train_instances = pickle.load(open(args.data_file + '.pkl', 'rb'))
+    train_instances = read_instances(args.data_file, MAX_TOKENS)
     print(f"\nReading Val Instances")
-    # val_instances = read_instances(args.val_file, MAX_TOKENS)
-    # pickle.dump(val_instances, open(args.val_file + '.pkl', 'wb'))
-    val_instances = pickle.load(open(args.val_file + '.pkl', 'rb'))
+    val_instances = read_instances(args.val_file, MAX_TOKENS)
 
     with open(GLOVE_COMMON_WORDS_PATH) as file:
         glove_common_words = [line.strip() for line in file.readlines() if line.strip()]
