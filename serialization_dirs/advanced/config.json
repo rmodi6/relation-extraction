@@ -1,0 +1,1 @@
+{"vocab_size": 10000, "embed_dim": 300, "training": true, "hidden_size": 128, "type": "advanced"}
